@@ -1,0 +1,5 @@
+google-cloud-bigquery
+google-cloud-storage
+pandas
+pyodbc
+db-dtypes
