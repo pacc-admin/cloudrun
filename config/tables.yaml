@@ -1,0 +1,13 @@
+# Ví dụ cấu hình sync
+tables:
+  - source_table: "dbo.test_cdc"
+    bq_dataset: "dbo"
+    bq_table: "test_cdc"
+    primary_key: "id"
+    active: true
+
+  - source_table: "dbo.products"
+    bq_dataset: "dbo"
+    bq_table: "products"
+    primary_key: "product_id"
+    active: false # Tạm thời không chạy bảng này

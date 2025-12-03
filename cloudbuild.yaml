@@ -1,0 +1,37 @@
+steps:
+  # 1. Build Docker Image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/docker-repo/mssql-cdc-sync:latest', '.']
+
+  # 2. Push Image to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'us-central1-docker.pkg.dev/$PROJECT_ID/docker-repo/mssql-cdc-sync:latest']
+
+  # 3. Deploy/Update Cloud Run Job
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'jobs'
+      - 'deploy'
+      - 'cdc-sync-job'
+      - '--image'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/docker-repo/mssql-cdc-sync:latest'
+      - '--region'
+      - 'us-central1'
+      - '--set-env-vars'
+      - 'BQ_PROJECT=$PROJECT_ID'
+      - '--set-env-vars'
+      - 'STATE_BUCKET=my-cdc-state-bucket'
+      # Lưu ý: Passwords nên dùng Secret Manager, đây là ví dụ env vars thường
+      - '--set-env-vars'
+      - 'MSSQL_SERVER=203.171.28.250'
+      - '--set-env-vars'
+      - 'MSSQL_DB=ANALYTICS'
+      - '--set-env-vars'
+      - 'MSSQL_USER=namba'
+      - '--set-env-vars'
+      - 'MSSQL_PASS=R2YUUCR7xN4aF5' 
+
+options:
+  logging: CLOUD_LOGGING_ONLY
