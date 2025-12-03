@@ -3,3 +3,6 @@ pandas
 google-cloud-bigquery
 google-cloud-storage
 pyyaml
+pyarrow
+db-dtypes
+sqlalchemy
