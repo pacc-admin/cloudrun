@@ -31,7 +31,7 @@ class MssqlClient:
         return pd.read_sql(sql, self.conn, params=[start_lsn, end_lsn])
 
     # --- HÀM MỚI QUAN TRỌNG: CHUNKING ---
-    def get_initial_snapshot_chunks(self, source_table, chunksize=200000):
+    def get_initial_snapshot_chunks(self, source_table, chunksize=100000):
         """
         Trả về dữ liệu dạng từng cục (Chunk), mặc định 200k dòng/lần.
         """
