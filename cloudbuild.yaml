@@ -19,6 +19,8 @@ steps:
       - 'us-central1-docker.pkg.dev/$PROJECT_ID/docker-repo/mssql-cdc-sync:latest'
       - '--region'
       - 'us-central1'
+      - '--service-account'
+      - 'airbyte-connect@pacc-raw-data.iam.gserviceaccount.com' # <--- QUAN TRỌNG: SA CỦA BẠN Ở ĐÂY
       - '--set-env-vars'
       - 'BQ_PROJECT=$PROJECT_ID'
       - '--set-env-vars'
