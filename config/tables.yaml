@@ -17,3 +17,69 @@ tables:
     bq_table: "PO_DETAIL"
     primary_key: "PR_KEY"
     active: true
+
+  - source_table: "dbo.CA_BOM"
+    bq_dataset: "dbo"
+    bq_table: "CA_BOM"
+    primary_key: "PR_KEY"
+    active: true
+
+  - source_table: "dbo.DM_ACCOUNT"
+    bq_dataset: "dbo"
+    bq_table: "DM_ACCOUNT"
+    primary_key: "ACCOUNT_ID"
+    active: true
+
+  - source_table: "dbo.DM_ITEM"
+    bq_dataset: "dbo"
+    bq_table: "DM_ITEM"
+    primary_key: "ITEM_ID"
+    active: true
+
+  - source_table: "dbo.DM_PR_DETAIL_CLASS"
+    bq_dataset: "dbo"
+    bq_table: "DM_PR_DETAIL_CLASS"
+    primary_key: "PR_DETAIL_CLASS_ID"
+    active: true
+
+  - source_table: "dbo.LEDGER"
+    bq_dataset: "dbo"
+    bq_table: "LEDGER"
+    primary_key: "PR_KEY_LEDGER"
+    active: true
+
+  - source_table: "dbo.PURCHASE"
+    bq_dataset: "dbo"
+    bq_table: "PURCHASE"
+    primary_key: "PR_KEY"
+    active: true
+
+  - source_table: "dbo.PURCHASE_DETAIL"
+    bq_dataset: "dbo"
+    bq_table: "PURCHASE_DETAIL"
+    primary_key: "PR_KEY"
+    active: true
+
+  - source_table: "dbo.SALE"
+    bq_dataset: "dbo"
+    bq_table: "SALE"
+    primary_key: "PR_KEY"
+    active: true
+
+  - source_table: "dbo.SALE_DETAIL"
+    bq_dataset: "dbo"
+    bq_table: "SALE_DETAIL"
+    primary_key: "PR_KEY"
+    active: true
+
+  - source_table: "dbo.WAREHOUSE"
+    bq_dataset: "dbo"
+    bq_table: "WAREHOUSE"
+    primary_key: "PR_KEY_WAREHOUSE"
+    active: true
+
+  - source_table: "dbo.WAREHOUSE_BALANCE_ACTUAL"
+    bq_dataset: "dbo"
+    bq_table: "WAREHOUSE_BALANCE_ACTUAL"
+    primary_key: "PR_KEY"
+    active: true
