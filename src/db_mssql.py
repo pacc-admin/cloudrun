@@ -30,10 +30,11 @@ class MssqlClient:
         """
         return pd.read_sql(sql, self.conn, params=[start_lsn, end_lsn])
 
-
-    def get_initial_snapshot(self, source_table):
-        # Lấy toàn bộ dữ liệu, nhưng giả lập thêm các cột của CDC
-        # __$operation = 2 (Insert), __$start_lsn = NULL (hoặc 0)
+    # --- HÀM MỚI QUAN TRỌNG: CHUNKING ---
+    def get_initial_snapshot_chunks(self, source_table, chunksize=200000):
+        """
+        Trả về dữ liệu dạng từng cục (Chunk), mặc định 200k dòng/lần.
+        """
         sql = f"""
         SELECT 
             *,
@@ -43,6 +44,5 @@ class MssqlClient:
             NULL as __$update_mask
         FROM {source_table}
         """
-        # Lưu ý: Cần đảm bảo thứ tự cột hoặc tên cột khớp với CDC nếu bảng có nhiều cột phức tạp
-        # Nhưng với pd.read_sql và load_dataframe của BQ, quan trọng là tên cột (column name).
-        return pd.read_sql(sql, self.conn)
+        # Tham số chunksize giúp pandas trả về iterator thay vì dataframe full
+        return pd.read_sql(sql, self.conn, chunksize=chunksize)

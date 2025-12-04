@@ -18,7 +18,14 @@ steps:
       - '--image'
       - 'us-central1-docker.pkg.dev/$PROJECT_ID/docker-repo/mssql-cdc-sync:latest'
       - '--region'
-      - 'us-central1'
+      - 'asia-southeast1'
+      # --- CẤU HÌNH TÀI NGUYÊN ---
+      - '--memory'
+      - '4Gi'             # Tăng lên 4GB RAM để tránh lỗi OOM
+      - '--cpu'
+      - '2'               # 2 vCPU cho khỏe
+      - '--task-timeout'
+      - '7200s'           # 7200 giây = 2 Tiếng (Để tải 7GB không bị cắt)
       - '--service-account'
       - 'airbyte-connect@pacc-raw-data.iam.gserviceaccount.com' # <--- QUAN TRỌNG: SA CỦA BẠN Ở ĐÂY
       - '--set-env-vars'
