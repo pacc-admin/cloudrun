@@ -53,7 +53,7 @@ def process_table(config, mssql, bq, state_mgr):
     if not table_exists:
         logging.info(f"🚀 Initial Load detected for {table_name}.")
         
-        chunk_iterator = mssql.get_initial_snapshot_chunks(table_name, chunksize=100000)
+        chunk_iterator = mssql.get_initial_snapshot_chunks(table_name, chunksize=50000)
         columns_schema = []
         has_data = False
 

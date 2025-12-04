@@ -28,7 +28,7 @@ class MssqlClient:
         """
         return pd.read_sql(sql, self.conn, params=[start_lsn, end_lsn])
 
-    def get_initial_snapshot_chunks(self, source_table, chunksize=100000):
+    def get_initial_snapshot_chunks(self, source_table, chunksize=50000):
         """
         Trả về dữ liệu Snapshot, ép kiểu cột hệ thống CDC để tránh lỗi NULL/Type mismatch
         """
