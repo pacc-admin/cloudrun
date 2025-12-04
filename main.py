@@ -44,7 +44,7 @@ def process_table(config, mssql, bq, state_mgr):
         logging.info(f"🚀 Initial Load detected for {table_name}. Starting Batch Processing...")
         
         # Lấy Iterator (batch 200k dòng)
-        chunk_iterator = mssql.get_initial_snapshot_chunks(table_name, chunksize=200000)
+        chunk_iterator = mssql.get_initial_snapshot_chunks(table_name, chunksize=100000)
         
         columns_schema = []
         total_rows = 0
