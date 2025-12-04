@@ -1,11 +1,9 @@
 import pyodbc
 import pandas as pd
 import os
-import logging
 
 class MssqlClient:
     def __init__(self):
-        # Lấy thông tin từ biến môi trường
         self.server = os.environ.get("MSSQL_SERVER")
         self.database = os.environ.get("MSSQL_DB")
         self.username = os.environ.get("MSSQL_USER")
@@ -30,19 +28,20 @@ class MssqlClient:
         """
         return pd.read_sql(sql, self.conn, params=[start_lsn, end_lsn])
 
-    # --- HÀM MỚI QUAN TRỌNG: CHUNKING ---
     def get_initial_snapshot_chunks(self, source_table, chunksize=100000):
         """
-        Trả về dữ liệu dạng từng cục (Chunk), mặc định 200k dòng/lần.
+        Trả về dữ liệu Snapshot, ép kiểu cột hệ thống CDC để tránh lỗi NULL/Type mismatch
         """
         sql = f"""
         SELECT 
             *,
-            0x00000000000000000000 as __$start_lsn,
-            0x00000000000000000000 as __$seqval,
-            2 as __$operation,  -- 2 nghĩa là INSERT
-            NULL as __$update_mask
+            -- Giả lập LSN dạng binary (khớp với kiểu varbinary của MSSQL CDC)
+            CAST(0x00 AS BINARY(10)) as __$start_lsn,
+            CAST(0x00 AS BINARY(10)) as __$seqval,
+            -- Operation 2 = Insert
+            2 as __$operation,
+            -- Update mask rỗng (varbinary)
+            CAST(0x00 AS VARBINARY(128)) as __$update_mask
         FROM {source_table}
         """
-        # Tham số chunksize giúp pandas trả về iterator thay vì dataframe full
         return pd.read_sql(sql, self.conn, chunksize=chunksize)
