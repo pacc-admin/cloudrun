@@ -29,7 +29,7 @@ steps:
       - '--set-env-vars'
       - 'MSSQL_SERVER=203.171.28.250'
       - '--set-env-vars'
-      - 'MSSQL_DB=ANALYTICS'
+      - 'MSSQL_DB=IACC_BGPACC2024'
       - '--set-env-vars'
       - 'MSSQL_USER=namba'
       - '--set-env-vars'

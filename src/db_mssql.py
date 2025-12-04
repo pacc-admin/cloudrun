@@ -29,3 +29,20 @@ class MssqlClient:
         (?, ?, 'all')
         """
         return pd.read_sql(sql, self.conn, params=[start_lsn, end_lsn])
+
+
+    def get_initial_snapshot(self, source_table):
+        # Lấy toàn bộ dữ liệu, nhưng giả lập thêm các cột của CDC
+        # __$operation = 2 (Insert), __$start_lsn = NULL (hoặc 0)
+        sql = f"""
+        SELECT 
+            *,
+            0x00000000000000000000 as __$start_lsn,
+            0x00000000000000000000 as __$seqval,
+            2 as __$operation,  -- 2 nghĩa là INSERT
+            NULL as __$update_mask
+        FROM {source_table}
+        """
+        # Lưu ý: Cần đảm bảo thứ tự cột hoặc tên cột khớp với CDC nếu bảng có nhiều cột phức tạp
+        # Nhưng với pd.read_sql và load_dataframe của BQ, quan trọng là tên cột (column name).
+        return pd.read_sql(sql, self.conn)
