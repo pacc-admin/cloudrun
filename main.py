@@ -2,6 +2,7 @@ import os
 import yaml
 import logging
 import pandas as pd
+import gc # Import để dọn dẹp RAM
 from src.db_mssql import MssqlClient
 from src.db_bigquery import BigQueryClient
 from src.state_manager import StateManager
@@ -11,31 +12,29 @@ logging.basicConfig(level=logging.INFO)
 
 BQ_PROJECT = os.environ.get("BQ_PROJECT")
 STATE_BUCKET = os.environ.get("STATE_BUCKET")
+BATCH_SIZE = 50000 # Cấu hình Chunk size
 
 def load_config():
     with open("config/tables.yaml", "r") as f:
         return yaml.safe_load(f)
 
 def clean_dataframe(df):
-    # Đổi tên cột __$ thành cdc_
+    # 1. Đổi tên cột hệ thống
     df.columns = [col.replace('__$', 'cdc_') for col in df.columns]
     
-    # Duyệt qua các cột để xử lý dữ liệu Binary -> Hex String
+    # 2. Xử lý Binary -> Hex String
     for col in df.columns:
-        # Lấy mẫu dữ liệu dòng đầu tiên (nếu có)
         if len(df) > 0:
             first_val = df[col].iloc[0]
-            
-            # Chỉ convert nếu là bytes (varbinary/binary)
             if isinstance(first_val, bytes):
-                # Apply hex() cho toàn bộ cột, xử lý cả giá trị Null/None
                 df[col] = df[col].apply(lambda x: x.hex() if isinstance(x, bytes) else x)
-                
-                # Ép về string để chắc chắn (tránh mixed types)
                 df[col] = df[col].astype(str).replace('nan', None)
+    
+    # 3. --- QUAN TRỌNG: THÊM CỘT SYNC_TIME ---
+    # Dùng pd.Timestamp.now() để Pandas nhận diện đúng là datetime64[ns]
+    # BigQuery sẽ map cái này thành DATETIME
+    df['sync_time'] = pd.Timestamp.now()
 
-    # Lưu ý: KHÔNG convert datetime thành string ở đây.
-    # Để nguyên object datetime để BigQueryClient._build_schema nhận diện được.
     return df
 
 def process_table(config, mssql, bq, state_mgr):
@@ -51,27 +50,34 @@ def process_table(config, mssql, bq, state_mgr):
 
     # --- INITIAL LOAD ---
     if not table_exists:
-        logging.info(f"🚀 Initial Load detected for {table_name}.")
+        logging.info(f"🚀 Initial Load detected. Batch size: {BATCH_SIZE}")
         
-        chunk_iterator = mssql.get_initial_snapshot_chunks(table_name, chunksize=50000)
+        chunk_iterator = mssql.get_initial_snapshot_chunks(table_name, chunksize=BATCH_SIZE)
         columns_schema = []
         has_data = False
 
         for i, chunk_df in enumerate(chunk_iterator):
             has_data = True
+            
+            # Clean data & Add sync_time
             chunk_df = clean_dataframe(chunk_df)
             
             if i == 0:
                 columns_schema = chunk_df.columns.tolist()
 
-            # Load Staging (Schema sẽ được tự động build và force trong hàm này)
+            # Load Staging
             bq.load_staging_chunk(chunk_df, bq_dataset, bq_table, is_first_chunk=(i==0))
             
-            logging.info(f"✅ Batch {i+1} loaded.")
+            rows_count = len(chunk_df)
+            logging.info(f"✅ Batch {i+1} loaded ({rows_count} rows).")
+            
+            # Giải phóng RAM
             del chunk_df
+            gc.collect()
 
         if has_data:
-            logging.info("📦 Executing Merge...")
+            logging.info("📦 Executing Merge with Partition...")
+            # Truyền column schema có chứa sync_time xuống hàm merge
             bq.execute_merge(bq_dataset, bq_table, pk, columns_schema)
         else:
             logging.warning("⚠️ Source table is empty.")
@@ -96,11 +102,15 @@ def process_table(config, mssql, bq, state_mgr):
             state_mgr.save_state(bq_table, current_max_lsn)
             return
 
+        # Clean data & Add sync_time
         df = clean_dataframe(df)
         
-        # Load changes vào Staging (Vẫn dùng hàm load cũ, nó sẽ tự apply schema chuẩn)
+        # Load Staging
         bq.load_staging_chunk(df, bq_dataset, bq_table, is_first_chunk=True)
         bq.execute_merge(bq_dataset, bq_table, pk, df.columns.tolist())
+        
+        del df
+        gc.collect()
 
     state_mgr.save_state(bq_table, current_max_lsn)
     logging.info(f"💾 Saved state.")

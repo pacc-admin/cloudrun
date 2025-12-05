@@ -1,7 +1,7 @@
 from google.cloud import bigquery
 from google.api_core.exceptions import NotFound
 import logging
-import pandas as pd  # Cần import pandas để check kiểu dữ liệu
+import pandas as pd
 
 class BigQueryClient:
     def __init__(self, project_id):
@@ -15,16 +15,13 @@ class BigQueryClient:
 
         disposition = "WRITE_TRUNCATE" if is_first_chunk else "WRITE_APPEND"
 
-        # --- LOGIC MỚI: XÂY DỰNG SCHEMA ĐỂ ÉP KIỂU ---
-        # Việc này giúp tránh lỗi:
-        # 1. CDC column (String) bị nhận thành Int64/Float
-        # 2. Datetime column bị nhận thành Int64 (do dữ liệu rỗng hoặc timestamp)
+        # Build schema (bao gồm cả cột sync_time mới thêm)
         schema_config = self._build_schema(df)
 
         job_config = bigquery.LoadJobConfig(
             write_disposition=disposition,
-            schema=schema_config, # Ép kiểu các cột đã định nghĩa
-            autodetect=True       # Các cột còn lại (String, Float chuẩn) để BQ tự lo
+            schema=schema_config, 
+            autodetect=True
         )
         
         job = self.client.load_table_from_dataframe(df, staging_table_id, job_config=job_config)
@@ -41,33 +38,27 @@ class BigQueryClient:
         self.client.query(final_query).result()
         logging.info(f"Merged staging into: {target_table_id}")
 
-    # --- HÀM PHỤ TRỢ: Build Schema Dynamic ---
+    # --- HÀM 3: Build Schema ---
     def _build_schema(self, df):
         schema = []
         
-        # 1. Định nghĩa cứng cho các cột CDC
-        # Giúp đồng nhất giữa Initial Load (Snapshot) và Incremental (CDC)
-        cdc_map = {
+        # 1. Map cứng cho các cột hệ thống để đảm bảo đúng Type
+        system_map = {
             "cdc_start_lsn": "STRING",
             "cdc_end_lsn":   "STRING",
             "cdc_seqval":    "STRING",
             "cdc_update_mask": "STRING",
-            "cdc_operation": "INT64"
+            "cdc_operation": "INT64",
+            "sync_time":     "DATETIME"  # <--- THÊM MỚI: Ép kiểu Datetime cho cột sync
         }
 
         for col in df.columns:
-            # A. Nếu là cột CDC -> Ép theo map
-            if col in cdc_map:
-                schema.append(bigquery.SchemaField(col, cdc_map[col]))
+            if col in system_map:
+                schema.append(bigquery.SchemaField(col, system_map[col]))
             
-            # B. Nếu là cột Datetime -> Ép về DATETIME hoặc TIMESTAMP
-            # Pandas thường nhận diện là datetime64[ns]
+            # Tự động detect các cột Datetime khác của bảng gốc
             elif pd.api.types.is_datetime64_any_dtype(df[col]):
-                # Dùng DATETIME an toàn hơn TIMESTAMP nếu source không có Timezone
                 schema.append(bigquery.SchemaField(col, "DATETIME"))
-                
-            # C. Các trường hợp khác (Int, Float, String business)
-            # Để autodetect lo, hoặc bạn có thể mở rộng logic tại đây nếu muốn
         
         return schema
 
@@ -81,21 +72,30 @@ class BigQueryClient:
 
     def _build_merge_query(self, target, staging, pk, cols, exists):
         actual_pk = next((c for c in cols if c.lower() == pk.lower()), pk)
-        partition_clause = f"PARTITION BY CAST({actual_pk} AS STRING)"
+        
+        # Partition clause dùng cho Window Function (Deduplicate)
+        dedup_partition = f"PARTITION BY CAST({actual_pk} AS STRING)"
 
         if not exists:
-            # Lưu ý: Khi create table AS SELECT, BQ sẽ lấy schema của bảng Staging
-            # Do bảng Staging đã được ép kiểu đúng ở bước Load, bảng Target sẽ đúng theo.
+            # --- TẠO BẢNG MỚI VỚI PARTITION ---
+            # Lưu ý: sync_time phải tồn tại trong cols (đã được add từ pandas)
             return f"""
-            CREATE OR REPLACE TABLE `{target}` AS
+            CREATE OR REPLACE TABLE `{target}`
+            PARTITION BY DATE(sync_time)  -- <--- PARTITION THEO NGÀY
+            OPTIONS(
+                require_partition_filter = FALSE
+            )
+            AS
             SELECT * EXCEPT(rn)
             FROM (
                 SELECT *, 
-                       ROW_NUMBER() OVER({partition_clause} ORDER BY cdc_start_lsn DESC, cdc_seqval DESC) as rn
+                       ROW_NUMBER() OVER({dedup_partition} ORDER BY cdc_start_lsn DESC, cdc_seqval DESC) as rn
                 FROM `{staging}`
             ) WHERE rn = 1 AND cdc_operation != 1
             """
         else:
+             # --- MERGE (INCREMENTAL) ---
+             # Logic này sẽ tự động update sync_time mới nhất cho các dòng có thay đổi
              update_list = [f"T.{c}=S.{c}" for c in cols if c != actual_pk]
              update_clause = ", ".join(update_list)
              insert_cols = ", ".join(cols)
@@ -105,7 +105,7 @@ class BigQueryClient:
              MERGE `{target}` T
              USING (
                 SELECT * FROM `{staging}`
-                QUALIFY ROW_NUMBER() OVER({partition_clause} ORDER BY cdc_start_lsn DESC, cdc_seqval DESC) = 1
+                QUALIFY ROW_NUMBER() OVER({dedup_partition} ORDER BY cdc_start_lsn DESC, cdc_seqval DESC) = 1
              ) S
              ON T.{actual_pk} = S.{actual_pk}
              WHEN MATCHED AND S.cdc_operation = 1 THEN DELETE
