@@ -32,6 +32,7 @@ steps:
       - 'BQ_PROJECT=$PROJECT_ID'
       - '--set-env-vars'
       - 'STATE_BUCKET=my-cdc-state-bucket'
+      - '--set-env-vars'   
       - 'FILTER_CONNECTION_ID=conn_acc'
       # Lưu ý: Passwords nên dùng Secret Manager, đây là ví dụ env vars thường
       - '--set-env-vars'
@@ -68,6 +69,7 @@ steps:
       - 'BQ_PROJECT=$PROJECT_ID'
       - '--set-env-vars'
       - 'STATE_BUCKET=my-cdc-state-bucket-sales'
+      - '--set-env-vars'   
       - 'FILTER_CONNECTION_ID=conn_sales' 
       # Lưu ý: Passwords nên dùng Secret Manager, đây là ví dụ env vars thường
       - '--set-env-vars'
