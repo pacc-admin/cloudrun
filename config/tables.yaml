@@ -116,3 +116,93 @@ tables:
     bq_table: "SALE"
     primary_key: "PR_KEY"
     active: true
+
+  - connection_id: "conn_sales"
+    source_table: "dbo.DM_AREA"
+    bq_dataset: "IPOSS_SALE"
+    bq_table: "DM_AREA"
+    primary_key: 
+      - "WORKSTATION_ID"
+      - "AREA_ID"
+    active: true
+
+  - connection_id: "conn_sales"
+    source_table: "dbo.DM_DINNER_TABLE"
+    bq_dataset: "IPOSS_SALE"
+    bq_table: "DM_DINNER_TABLE"
+    primary_key: 
+      - "AREA_ID"
+      - "DINNER_TABLE_ID"
+      - "WORKSTATION_ID"
+    active: true
+
+  - connection_id: "conn_sales"
+    source_table: "dbo.DM_EXTRA_2"
+    bq_dataset: "IPOSS_SALE"
+    bq_table: "DM_EXTRA_2"
+    primary_key: "EXTRA_ID_2"
+    active: true
+
+  - connection_id: "conn_sales"
+    source_table: "dbo.DM_ITEM"
+    bq_dataset: "IPOSS_SALE"
+    bq_table: "DM_ITEM"
+    primary_key: 
+      - "ITEM_ID"
+      - "WORKSTATION_ID"
+    active: true
+
+  - connection_id: "conn_sales"
+    source_table: "dbo.DM_ITEM_CLASS"
+    bq_dataset: "IPOSS_SALE"
+    bq_table: "DM_ITEM_CLASS"
+    primary_key: 
+      - "ITEM_CLASS_ID"
+      - "WORKSTATION_ID"
+    active: true
+
+  - connection_id: "conn_sales"
+    source_table: "dbo.DM_ITEM_TYPE"
+    bq_dataset: "IPOSS_SALE"
+    bq_table: "DM_ITEM_TYPE"
+    primary_key: 
+      - "ITEM_TYPE_ID"
+      - "WORKSTATION_ID"
+    active: true
+
+  - connection_id: "conn_sales"
+    source_table: "dbo.DM_MEMBERSHIP_DISCOUNT"
+    bq_dataset: "IPOSS_SALE"
+    bq_table: "DM_MEMBERSHIP_DISCOUNT"
+    primary_key: "PR_KEY"
+    active: true
+
+  - connection_id: "conn_sales"
+    source_table: "dbo.DM_MEMBERSHIP_TYPE"
+    bq_dataset: "IPOSS_SALE"
+    bq_table: "DM_MEMBERSHIP_TYPE"
+    primary_key: 
+      - "MEMBERSHIP_TYPE_ID"
+      - "WORKSTATION_ID"
+    active: true
+
+  - connection_id: "conn_sales"
+    source_table: "dbo.DM_WORKSTATION"
+    bq_dataset: "IPOSS_SALE"
+    bq_table: "DM_WORKSTATION"
+    primary_key: "WORKSTATION_ID"
+    active: true
+
+  - connection_id: "conn_sales"
+    source_table: "dbo.ORDER_MENU_LOG"
+    bq_dataset: "IPOSS_SALE"
+    bq_table: "ORDER_MENU_LOG"
+    primary_key: "PR_KEY"
+    active: true
+
+  - connection_id: "conn_sales"
+    source_table: "dbo.SALE_DETAIL"
+    bq_dataset: "IPOSS_SALE"
+    bq_table: "SALE_DETAIL"
+    primary_key: "PR_KEY"
+    active: true

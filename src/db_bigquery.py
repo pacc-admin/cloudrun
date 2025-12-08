@@ -70,18 +70,38 @@ class BigQueryClient:
         except NotFound:
             return False
 
+
     def _build_merge_query(self, target, staging, pk, cols, exists):
-        actual_pk = next((c for c in cols if c.lower() == pk.lower()), pk)
+        # 1. XỬ LÝ PRIMARY KEY (Hỗ trợ Composite Key)
+        # Nếu pk là list thì giữ nguyên, nếu là string thì đưa vào list
+        if isinstance(pk, list):
+            pk_list_raw = pk
+        else:
+            pk_list_raw = [pk]
+
+        # Map tên cột PK trong config sang tên cột thực tế trong DataFrame (xử lý case-insensitive)
+        # Ví dụ: Config ghi "id", Dataframe là "ID" -> lấy "ID"
+        actual_pk_list = []
+        for key in pk_list_raw:
+            found_col = next((c for c in cols if c.lower() == key.lower()), key)
+            actual_pk_list.append(found_col)
+
+        # 2. XÂY DỰNG CÁC MỆNH ĐỀ SQL
         
-        # Partition clause dùng cho Window Function (Deduplicate)
-        dedup_partition = f"PARTITION BY CAST({actual_pk} AS STRING)"
+        # Mệnh đề Partition cho Deduplicate (ROW_NUMBER)
+        # VD: PARTITION BY CAST(Col1 AS STRING), CAST(Col2 AS STRING)
+        dedup_cols = ", ".join([f"CAST({k} AS STRING)" for k in actual_pk_list])
+        dedup_partition = f"PARTITION BY {dedup_cols}"
+
+        # Mệnh đề JOIN cho MERGE
+        # VD: T.Col1 = S.Col1 AND T.Col2 = S.Col2
+        join_conditions = " AND ".join([f"T.{k} = S.{k}" for k in actual_pk_list])
 
         if not exists:
             # --- TẠO BẢNG MỚI VỚI PARTITION ---
-            # Lưu ý: sync_time phải tồn tại trong cols (đã được add từ pandas)
             return f"""
             CREATE OR REPLACE TABLE `{target}`
-            PARTITION BY DATE(sync_time)  -- <--- PARTITION THEO NGÀY
+            PARTITION BY DATE(sync_time)  -- Vẫn giữ Partition theo ngày sync
             OPTIONS(
                 require_partition_filter = FALSE
             )
@@ -95,9 +115,10 @@ class BigQueryClient:
             """
         else:
              # --- MERGE (INCREMENTAL) ---
-             # Logic này sẽ tự động update sync_time mới nhất cho các dòng có thay đổi
-             update_list = [f"T.{c}=S.{c}" for c in cols if c != actual_pk]
+             # Update tất cả các cột NGOẠI TRỪ các cột nằm trong Primary Key
+             update_list = [f"T.{c}=S.{c}" for c in cols if c not in actual_pk_list]
              update_clause = ", ".join(update_list)
+             
              insert_cols = ", ".join(cols)
              insert_vals = ", ".join([f"S.{c}" for c in cols])
              
@@ -107,7 +128,7 @@ class BigQueryClient:
                 SELECT * FROM `{staging}`
                 QUALIFY ROW_NUMBER() OVER({dedup_partition} ORDER BY cdc_start_lsn DESC, cdc_seqval DESC) = 1
              ) S
-             ON T.{actual_pk} = S.{actual_pk}
+             ON {join_conditions}
              WHEN MATCHED AND S.cdc_operation = 1 THEN DELETE
              WHEN MATCHED AND S.cdc_operation != 1 THEN UPDATE SET {update_clause}
              WHEN NOT MATCHED AND S.cdc_operation != 1 THEN INSERT ({insert_cols}) VALUES ({insert_vals})
