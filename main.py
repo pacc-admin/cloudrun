@@ -3,6 +3,7 @@ import yaml
 import logging
 import pandas as pd
 import gc
+import sys
 from src.db_mssql import MssqlClient
 from src.db_bigquery import BigQueryClient
 from src.state_manager import StateManager
@@ -122,6 +123,7 @@ def main():
     bq = BigQueryClient(BQ_PROJECT)
     state_mgr = StateManager(STATE_BUCKET)
     clients_cache = {}
+    has_error = False
 
     logging.info(f"🚀 Job Started. Filter Mode: {FILTER_CONNECTION_ID if FILTER_CONNECTION_ID else 'ALL'}")
 
@@ -148,9 +150,18 @@ def main():
             
             # Chạy logic đồng bộ
             process_table(table_conf, mssql, bq, state_mgr)
+            logging.info(f"✅ Job done for {table_conf['source_table']}")
 
         except Exception as e:
+            has_error = True
             logging.error(f"❌ Failed to sync {table_conf.get('source_table')}: {e}", exc_info=True)
+
+    if has_error:
+        logging.error("❌ Cloud Run job failed due to one or more table errors.")
+        sys.exit(1)
+    else:
+        logging.info("🎉 All jobs completed successfully.")
+        sys.exit(0)
 
 if __name__ == "__main__":
     main()
