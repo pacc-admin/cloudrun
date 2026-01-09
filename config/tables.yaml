@@ -108,6 +108,20 @@ tables:
     primary_key: "PR_KEY"
     active: true
 
+  - connection_id: "conn_acc"
+    source_table: "dbo.SALE_BASE_PRICE"
+    bq_dataset: "dbo"
+    bq_table: "SALE_BASE_PRICE"
+    primary_key: "PR_KEY"
+    active: true
+
+  - connection_id: "conn_acc"
+    source_table: "dbo.SALE_BASE_PRICE_DETAIL"
+    bq_dataset: "dbo"
+    bq_table: "SALE_BASE_PRICE_DETAIL"
+    primary_key: "PR_KEY"
+    active: true
+
 
 
   - connection_id: "conn_sales"
